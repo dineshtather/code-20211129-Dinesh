@@ -1,0 +1,61 @@
+# Starter pipeline
+
+trigger: none
+pr: none
+
+variables:
+  Major: 0
+  Minor: 1
+  DEVOPS_PACKAGE_VERSION: $(Build.BuildNumber)
+  #working_directory: notebooks
+  working_directoy: "devops_pipelines/databricks"
+  dev_deployment_environment: <<Dev env deployment>>
+  dev_variable_group: <<Dev variable group>>
+  dev_service_connection: "dev service conn"
+  databricks_host: "Dev datarbicks host"
+  service_connection: "<<SC>>" 
+
+name: $(Major).$(Minor).$(Rev:r)
+
+pool:
+  vmImage: 'ubuntu-16.04'
+
+stages:
+  - stage: Stage_Test_BMI_stage
+    jobs:
+      - job: export_notebooks
+        steps:
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: 'notebooks'
+            ArtifactName: 'notebooks'
+            publishLocation: 'Container'
+
+  - stage: Stage_Test_BMI_Deploy
+    jobs:
+      - deployment: databricks
+        environment: "BMI_env"
+        strategy:
+         runOnce:
+            deploy:
+             steps:
+               - checkout: self
+                 clean: true
+            
+               - template: devops_pipelines/databricks/templates/setup-databricks-cli.yml
+                 parameters: 
+                   databricks_host: ${{variables.databricks_host}}
+                   service_connection: ${{variables.service_connection}}
+               - script: |
+                   databricks --version
+                 displayName: Version of databricks-cli used
+                 workingDirectory: "devops_pipelines/databricks"
+               - download: current
+                 artifact: 'notebooks'
+                 displayName: Download notebooks artifact
+  
+               - bash: |
+                   set -x
+                   databricks workspace import_dir -o $(Pipeline.Workspace)/notebooks /
+                 workingDirectory: "devops_pipelines/databricks"
+                 displayName: Publish notebooks to databricks
