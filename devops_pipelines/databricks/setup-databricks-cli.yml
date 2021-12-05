@@ -1,0 +1,28 @@
+parameters:
+- name: databricks_host # name of the parameter; required
+  type: string # data type of the parameter; required
+
+- name: service_connection # name of the parameter; required
+  type: string # data type of the parameter; required
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+  displayName: 'Use Python 3.x'
+
+- script: |
+    python -m pip install --upgrade pip
+    pip install --upgrade databricks-cli
+  displayName: 'Install databricks-cli'
+
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: ${{ parameters.service_connection }}
+    scriptType: bash
+    scriptLocation: inlineScript
+    inlineScript: |
+      echo "##vso[task.setvariable variable=DATABRICKS_HOST]${{parameters.databricks_host}}"
+      echo "##vso[task.setvariable variable=DATABRICKS_TOKEN]$(az account <<provide the access token here under resource>>)"
+  displayName: Export DATABRICKS_HOST and DATABRICKS_TOKEN
